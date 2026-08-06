@@ -16,8 +16,10 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "mypy>=1.10.0",
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
+    "pytest-cov>=5.0.0",
     "ruff>=0.5.0",
 ]
 
@@ -29,3 +31,8 @@ target-version = "py311"
 asyncio_mode = "auto"
 testpaths = ["tests"]
 
+[tool.mypy]
+python_version = "3.11"
+plugins = ["pydantic.mypy", "sqlalchemy.ext.mypy.plugin"]
+strict = true
+exclude = ["\\.venv"]

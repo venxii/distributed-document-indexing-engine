@@ -48,10 +48,13 @@ class CrawlResult:
     fetched_bytes: int
     duration_ms: int
     attempts: int
+    robots_url: str | None
+    robots_allowed: bool | None
+    robots_reason: str | None
+    rate_limit_delay_ms: int
     failure_reason: CrawlFailureReason | None
     error_message: str | None
 
     @property
     def succeeded(self) -> bool:
         return self.failure_reason is None and self.content is not None
-

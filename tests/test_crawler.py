@@ -39,6 +39,9 @@ async def test_fetch_snapshot_success() -> None:
     assert result.content_type == "text/html"
     assert result.fetched_bytes == len(b"<html>careers</html>")
     assert result.attempts == 1
+    assert result.robots_url == "https://example.com/robots.txt"
+    assert result.robots_allowed is True
+    assert result.rate_limit_delay_ms == 0
 
 
 @pytest.mark.asyncio
@@ -66,6 +69,8 @@ async def test_fetch_snapshot_respects_robots_txt() -> None:
     assert not result.succeeded
     assert result.failure_reason == CrawlFailureReason.blocked_by_robots
     assert result.attempts == 0
+    assert result.robots_url == "https://example.com/robots.txt"
+    assert result.robots_allowed is False
     assert requested_paths == ["/robots.txt"]
 
 
@@ -159,3 +164,30 @@ async def test_per_host_rate_limiter_delays_repeated_requests_to_same_host() -> 
 
     assert len(slept_for) == 1
     assert 0 < slept_for[0] <= 10
+
+
+@pytest.mark.asyncio
+async def test_fetch_snapshot_records_rate_limit_delay() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/robots.txt":
+            return httpx.Response(200, text="User-agent: *\nAllow: /\n")
+        return httpx.Response(200, content=b"ok")
+
+    async def no_actual_sleep(_: float) -> None:
+        return None
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        base_url="https://example.com",
+    ) as client:
+        crawler = CrawlerService(
+            client=client,
+            config=CrawlerConfig(per_host_delay_seconds=10),
+            sleep=no_actual_sleep,
+        )
+
+        first_result = await crawler.fetch_snapshot("https://example.com/a")
+        second_result = await crawler.fetch_snapshot("https://example.com/b")
+
+    assert first_result.rate_limit_delay_ms == 0
+    assert second_result.rate_limit_delay_ms > 0

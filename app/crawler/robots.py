@@ -1,8 +1,11 @@
+import logging
 from dataclasses import dataclass
 from urllib.parse import urljoin, urlsplit
 from urllib.robotparser import RobotFileParser
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -31,10 +34,12 @@ class RobotsTxtChecker:
         robots_url = urljoin(site_root, "/robots.txt")
 
         if site_root not in self._parsers:
+            logger.info("crawler.robots_fetch_started", extra={"robots_url": robots_url})
             self._parsers[site_root] = await self._fetch_parser(robots_url)
 
         parser = self._parsers[site_root]
         if parser is None:
+            logger.warning("crawler.robots_unavailable", extra={"robots_url": robots_url})
             return RobotsDecision(
                 allowed=True,
                 robots_url=robots_url,
@@ -43,6 +48,10 @@ class RobotsTxtChecker:
 
         allowed = parser.can_fetch(self._user_agent, url)
         reason = None if allowed else "robots.txt disallows this URL"
+        logger.info(
+            "crawler.robots_checked",
+            extra={"url": url, "robots_url": robots_url, "allowed": allowed},
+        )
         return RobotsDecision(allowed=allowed, robots_url=robots_url, reason=reason)
 
     async def _fetch_parser(self, robots_url: str) -> RobotFileParser | None:
@@ -63,4 +72,3 @@ class RobotsTxtChecker:
     def _site_root(url: str) -> str:
         parsed = urlsplit(url)
         return f"{parsed.scheme}://{parsed.netloc}"
-
