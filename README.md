@@ -19,7 +19,8 @@ The system starts as one modular FastAPI application. It is designed with clear 
 
 ## Current Phase
 
-Phase 1: Architecture and project foundation.
+Phase 2: Crawler.
 
-No crawler, parser, indexing, cache, or deployment implementation is included yet.
+The crawler fetches immutable external document snapshots with timeouts, retry/backoff, robots.txt awareness, and per-host rate limiting.
 
+Parser, indexing, cache, and deployment implementation are intentionally delayed until later phases.

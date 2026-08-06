@@ -80,7 +80,9 @@ Owns HTTP routes, request validation, and response formatting. It should not con
 
 ### Crawler
 
-Fetches external document snapshots with timeouts, retries, robots.txt awareness, backoff, and rate limiting.
+Fetches immutable external document snapshots with timeouts, retries, robots.txt awareness, backoff, and per-host rate limiting.
+
+The crawler does not parse HTML, compute hashes, or decide whether content changed. Its responsibility is to fetch safely and return enough metadata for later pipeline stages.
 
 ### Parser
 
@@ -113,4 +115,3 @@ Stores durable state and supports transactional updates.
 The weakest assumption is that useful career page content can be fetched with normal HTTP and parsed from static HTML.
 
 If real target pages require JavaScript rendering, Playwright can be introduced as a targeted fallback rather than the default crawler.
-

@@ -9,6 +9,8 @@
 - 403 bot protection
 - 500-class upstream error
 - robots.txt disallowing access
+- robots.txt unavailable
+- too many redirects
 
 ## Parsing Failures
 
@@ -31,4 +33,3 @@
 - Database connection pool exhaustion
 - Slow queries over growing indexed content
 - Crawl schedules become too aggressive for target domains
-

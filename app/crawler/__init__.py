@@ -1,5 +1,2 @@
-"""Fetch external document snapshots.
-
-Implementation begins in Phase 2.
-"""
+"""Fetch external document snapshots."""
 

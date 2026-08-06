@@ -135,3 +135,78 @@ The initial system can be understood through sources, crawl_runs, and documents.
 Tradeoffs:
 Early debugging relies more on logs and crawl metadata. If indexing behavior becomes harder to explain, we will add structured index events later.
 
+## Why Treat Crawling as Snapshot Fetching?
+
+Problem:
+The crawler needs a clear responsibility that supports incremental indexing without absorbing parser or indexer logic.
+
+Alternatives:
+- Let the crawler fetch, parse, and detect changes
+- Let the crawler only fetch immutable document snapshots
+- Store raw HTML snapshots immediately in S3
+
+Chosen:
+Let the crawler only fetch immutable document snapshots and crawl metadata.
+
+Reason:
+Fetching is a networking concern. Parsing and change detection are separate pipeline stages with different failure modes. Keeping the crawler narrow makes retries, robots.txt behavior, and rate limiting easier to reason about.
+
+Tradeoffs:
+Later phases must explicitly pass crawl output into parser and indexing components.
+
+## Why Retry Only Transient Fetch Failures?
+
+Problem:
+External HTTP requests can fail temporarily, but retries can also amplify load or hide permanent failures.
+
+Alternatives:
+- Retry every failed request
+- Retry no failed requests
+- Retry only timeouts, network errors, HTTP 429, and 5xx responses
+
+Chosen:
+Retry only timeouts, network errors, HTTP 429, and 5xx responses.
+
+Reason:
+These failures are plausibly transient. Regular 4xx responses usually mean the request is invalid, forbidden, or missing, so retrying wastes time and creates unnecessary traffic.
+
+Tradeoffs:
+Some unusual 4xx responses may be transient, but the simpler policy is safer and easier to defend.
+
+## Why Robots.txt Fail Open?
+
+Problem:
+The crawler should respect robots.txt, but robots.txt itself may be unavailable due to transient network or server errors.
+
+Alternatives:
+- Fail closed when robots.txt cannot be fetched
+- Fail open when robots.txt cannot be fetched
+- Require manual allowlists for every source
+
+Chosen:
+Fail open when robots.txt cannot be fetched, but obey explicit disallow rules when robots.txt is available.
+
+Reason:
+Many real sites do not serve robots.txt reliably. Failing open keeps the crawler useful while still respecting explicit crawl restrictions.
+
+Tradeoffs:
+This is a weaker politeness posture than failing closed. If the project later crawls sensitive or high-volume targets, this decision should be revisited.
+
+## Why Per-Host Rate Limiting In Process?
+
+Problem:
+The crawler needs to avoid sending bursts of requests to the same host.
+
+Alternatives:
+- No rate limiting
+- In-process per-host rate limiting
+- Redis-backed distributed rate limiting
+
+Chosen:
+In-process per-host rate limiting.
+
+Reason:
+The current system is one process. In-process state solves the immediate politeness problem without introducing Redis before we have multiple workers.
+
+Tradeoffs:
+If multiple crawler processes are introduced later, each process will have its own rate limit state. At that point, shared coordination may justify Redis.
