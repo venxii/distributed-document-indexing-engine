@@ -19,12 +19,14 @@ The system starts as one modular FastAPI application. It is designed with clear 
 
 ## Current Phase
 
-Phase 4: Incremental Indexing.
+Phase 5A: PostgreSQL integration validation.
 
 The crawler fetches immutable external document snapshots with timeouts, retry/backoff, robots.txt awareness, and per-host rate limiting.
 
 The parser converts fetched HTML into an internal document schema with canonical URL, title, headings, and normalized text.
 
 The indexer computes canonical content hashes, detects unchanged documents, updates changed documents, and records distinct successfully indexed document versions.
+
+Phase 5A validates those indexing invariants against PostgreSQL through Docker Compose, Alembic schema setup, and PostgreSQL-specific tests.
 
 Cache and deployment implementation are intentionally delayed until later phases.

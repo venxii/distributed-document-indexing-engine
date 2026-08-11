@@ -453,3 +453,18 @@ Storage growth is proportional to the number of distinct content states, not the
 - Playwright fallback
 
 These are deferred because exact hash-based document indexing is sufficient for the current engineering goal and is easier to test, explain, and make idempotent.
+
+## Phase 5A PostgreSQL Validation Design
+
+Phase 5A validates the Phase 4 storage assumptions against PostgreSQL before building the REST query API.
+
+This is not a feature expansion. The goal is to prove that PostgreSQL enforces the invariants the indexer depends on:
+
+- one current document per `(source_id, canonical_url)`
+- one version per `(document_id, content_hash)`
+- atomic document/version writes
+- correct behavior under concurrent first ingestion
+
+The detailed validation plan lives in `docs/phase-5a-postgresql-validation.md`.
+
+Phase 5A explicitly does not introduce Redis, queues, workers, AWS deployment, external search, or new indexing semantics.

@@ -439,3 +439,41 @@ The current observed problem is idempotent database updates, not distributed coo
 
 Tradeoffs:
 If we later run many independent workers and see coordination bottlenecks, Redis or a queue may become justified. Adding them now would be premature.
+
+## Why Validate PostgreSQL Before Building the REST API?
+
+Problem:
+Phase 4 indexing correctness depends on database constraints, transactions, and concurrent write behavior that SQLite cannot fully validate.
+
+Alternatives:
+- Move directly to REST API development
+- Add Redis or another coordination system
+- Validate the existing indexing design against PostgreSQL first
+
+Chosen:
+Validate the existing indexing design against PostgreSQL first.
+
+Reason:
+PostgreSQL is the storage system the project is designed around. Before exposing indexed documents through an API, we should verify that the database enforces the invariants the indexer relies on.
+
+Tradeoffs:
+This delays API work, but it reduces the risk of building query behavior on top of unvalidated storage assumptions.
+
+## Why PostgreSQL Validation Is Not a New Architecture Layer?
+
+Problem:
+Adding Docker Compose and PostgreSQL could be mistaken for adding technology for resume optics.
+
+Alternatives:
+- Treat PostgreSQL validation as a feature phase
+- Treat PostgreSQL validation as infrastructure validation
+- Skip it until deployment
+
+Chosen:
+Treat PostgreSQL validation as infrastructure validation.
+
+Reason:
+The project already chose PostgreSQL as the durable store. Phase 5A simply verifies that the implemented indexing logic behaves correctly against that chosen dependency.
+
+Tradeoffs:
+It adds local environment setup, but that setup directly supports correctness validation rather than architectural breadth.
