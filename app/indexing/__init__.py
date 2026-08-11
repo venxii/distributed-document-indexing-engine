@@ -1,5 +1,1 @@
-"""Detect content changes and maintain the searchable index.
-
-Implementation begins in Phase 4.
-"""
-
+"""Detect content changes and maintain the searchable index."""

@@ -268,3 +268,174 @@ Phase 4 will use exact content hashes. The parser should reduce irrelevant forma
 
 Tradeoffs:
 The parser may still include navigation or footer text, and aggressive cleanup could remove useful context if taken too far. The current cleanup is intentionally conservative.
+
+## Why Exact Hash-Based Change Detection?
+
+Problem:
+The indexer needs to decide whether a parsed document changed without reprocessing unchanged content.
+
+Alternatives:
+- Exact hash comparison
+- Fuzzy text similarity
+- Semantic diffing
+- Always re-index
+
+Chosen:
+Exact hash comparison over canonical parsed content.
+
+Reason:
+Exact hashing is deterministic, fast, simple to test, and easy to explain. It directly supports idempotency: same canonical content produces the same hash and therefore no new version.
+
+Tradeoffs:
+Small parser-output changes can trigger updates even if the human-meaningful page content did not change. We accept this for Phase 4 because fuzzy matching would introduce subjective thresholds and harder-to-debug behavior.
+
+## Why SHA-256 for Content Hashing?
+
+Problem:
+The system needs a stable digest for canonical parsed content.
+
+Alternatives:
+- SHA-256
+- MD5
+- Python built-in `hash`
+- Store and compare full text only
+
+Chosen:
+SHA-256.
+
+Reason:
+SHA-256 is deterministic across processes, widely understood, collision-resistant for practical purposes, and available in Python's standard library.
+
+Tradeoffs:
+It is more computationally expensive than non-cryptographic hashes, but the cost is linear in document size and negligible compared with network crawling and database I/O for this project.
+
+## Why Exclude Canonical URL From the Content Hash?
+
+Problem:
+The indexer must distinguish document identity from document content.
+
+Alternatives:
+- Include canonical URL in the hash
+- Exclude canonical URL from the hash
+
+Chosen:
+Exclude canonical URL from the content hash.
+
+Reason:
+`canonical_url` identifies the logical document row through `(source_id, canonical_url)`. It is not content. A URL identity change should be handled as an identity/canonicalization issue rather than as a content mutation.
+
+Tradeoffs:
+If a page changes only its canonical URL while keeping identical visible content, the system may treat it as a different logical document. That is acceptable for now because URL identity resolution is separate from content change detection.
+
+## Why Include Title and Headings in the Canonical Content?
+
+Problem:
+The hash must represent meaningful parsed document content.
+
+Alternatives:
+- Hash only `normalized_text`
+- Hash `title`, `headings`, and `normalized_text`
+- Hash every parser field including URL metadata
+
+Chosen:
+Hash `title`, `headings`, and `normalized_text`.
+
+Reason:
+Titles and headings are visible document structure and can change meaningfully even when body text is similar. Including them keeps page-level document identity closer to what a user or interviewer would understand as the document's content.
+
+Tradeoffs:
+Headings may also appear in `normalized_text`, so this can duplicate some information. Deterministic field separators make the representation unambiguous, and the simplicity is worth it.
+
+## Why Add Document Versions in Phase 4?
+
+Problem:
+Incremental indexing needs to prove which distinct content states have been successfully indexed over time.
+
+Alternatives:
+- Keep only the current `documents` row
+- Add `document_versions`
+- Add a general `index_events` audit table
+
+Chosen:
+Add `document_versions`.
+
+Reason:
+A version now solves a concrete Phase 4 problem: preserving each distinct successfully indexed content state. It lets us verify that unchanged content does not create duplicate versions and changed content creates exactly one new version.
+
+Tradeoffs:
+Version history increases storage usage. Storage grows with distinct content states, not crawl count, which is acceptable for this phase.
+
+## Why First Ingestion Creates a Version?
+
+Problem:
+The system needs clear version semantics from the first successful index operation onward.
+
+Alternatives:
+- Create a current document row only on first ingestion
+- Create both a current document row and version 1
+
+Chosen:
+Create both a current document row and version 1.
+
+Reason:
+This gives a simple invariant: every successfully indexed content state has a version row, including the initial state.
+
+Tradeoffs:
+The first ingestion does one extra insert, but the resulting model is easier to reason about and test.
+
+## Why No Index Events in Phase 4?
+
+Problem:
+The indexer can produce outcomes such as `created`, `updated`, `unchanged`, and `failed`.
+
+Alternatives:
+- Store every outcome in an `index_events` table
+- Return the outcome from the indexing service and log it
+- Store only failures persistently
+
+Chosen:
+Return the outcome from the indexing service and log it.
+
+Reason:
+The current database state plus `document_versions` is enough to explain content history. A general event table would add schema and write complexity before we have evidence that persistent event history is needed.
+
+Tradeoffs:
+Operational debugging relies on logs for per-attempt outcome history. If that becomes insufficient, `index_events` can be introduced with evidence.
+
+## Why Use Database Constraints for Document Identity?
+
+Problem:
+Multiple indexing attempts may process the same logical document concurrently.
+
+Alternatives:
+- Rely only on application-level existence checks
+- Enforce uniqueness in PostgreSQL with `(source_id, canonical_url)`
+- Add distributed locks
+
+Chosen:
+Enforce uniqueness in PostgreSQL with `(source_id, canonical_url)`.
+
+Reason:
+Document identity is a storage invariant, so the database should enforce it. Application checks are useful for control flow, but they are not enough under concurrency.
+
+Tradeoffs:
+The indexer must handle uniqueness conflicts or use upsert/locking behavior carefully. That is simpler than introducing distributed locking before multiple workers exist.
+
+## Why Defer Redis or a Queue for Indexing?
+
+Problem:
+Future multiple workers may need coordination, but Phase 4 is still inside one modular backend.
+
+Alternatives:
+- Add Redis locks now
+- Add a queue now
+- Use PostgreSQL transactions and constraints first
+
+Chosen:
+Use PostgreSQL transactions and constraints first.
+
+Reason:
+The current observed problem is idempotent database updates, not distributed coordination. PostgreSQL already gives us transactions, uniqueness constraints, and row-level concurrency tools.
+
+Tradeoffs:
+If we later run many independent workers and see coordination bottlenecks, Redis or a queue may become justified. Adding them now would be premature.
