@@ -19,8 +19,10 @@ The system starts as one modular FastAPI application. It is designed with clear 
 
 ## Current Phase
 
-Phase 2: Crawler.
+Phase 3: Parser.
 
 The crawler fetches immutable external document snapshots with timeouts, retry/backoff, robots.txt awareness, and per-host rate limiting.
 
-Parser, indexing, cache, and deployment implementation are intentionally delayed until later phases.
+The parser converts fetched HTML into an internal document schema with canonical URL, title, headings, and normalized text.
+
+Indexing, cache, and deployment implementation are intentionally delayed until later phases.

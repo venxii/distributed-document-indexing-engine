@@ -18,6 +18,8 @@
 - Useful content is rendered only by JavaScript
 - Parser extracts navigation or boilerplate instead of main content
 - Parser removes meaningful text during cleanup
+- Page returns JSON, PDF, or another non-HTML content type
+- Page has too little meaningful text after cleanup
 
 ## Indexing Failures
 

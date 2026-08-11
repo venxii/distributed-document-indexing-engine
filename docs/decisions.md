@@ -210,3 +210,61 @@ The current system is one process. In-process state solves the immediate politen
 
 Tradeoffs:
 If multiple crawler processes are introduced later, each process will have its own rate limit state. At that point, shared coordination may justify Redis.
+
+## Why Parse Pages Into Document Text, Not Job Records?
+
+Problem:
+Career pages vary widely. Some expose individual jobs clearly, while others are general landing pages, embedded boards, or JavaScript-heavy pages.
+
+Alternatives:
+- Extract individual job records in Phase 3
+- Normalize each fetched page into one internal document
+- Build site-specific adapters for every company
+
+Chosen:
+Normalize each fetched page into one internal document with canonical URL, title, headings, and normalized text.
+
+Reason:
+The project is an indexing engine, not a job portal. Page-level document parsing directly supports Phase 4 hash-based change detection and avoids pretending we can accurately extract job entities from arbitrary HTML without more evidence.
+
+Tradeoffs:
+The system cannot yet answer structured job questions such as location or department. That is acceptable because the current goal is reliable document indexing.
+
+## Why BeautifulSoup for Phase 3 Parsing?
+
+Problem:
+We need to parse messy external HTML into a stable internal document representation.
+
+Alternatives:
+- BeautifulSoup
+- lxml directly
+- Browser DOM extraction with Playwright
+- Site-specific parsers
+
+Chosen:
+BeautifulSoup.
+
+Reason:
+BeautifulSoup is simple, forgiving of malformed HTML, and sufficient for extracting page-level text, titles, headings, and canonical URLs.
+
+Tradeoffs:
+It does not execute JavaScript and may preserve some boilerplate text. If real pages require browser-rendered DOM content, Playwright can be introduced as a targeted fallback later.
+
+## Why Normalize Whitespace and Remove Script-Like Tags?
+
+Problem:
+Raw HTML contains formatting noise, scripts, styles, and markup differences that should not make the internal document unstable.
+
+Alternatives:
+- Store raw HTML as the parser output
+- Normalize only basic text extraction
+- Remove non-content tags and normalize whitespace
+
+Chosen:
+Remove script-like non-content tags and normalize text whitespace into stable lines.
+
+Reason:
+Phase 4 will use exact content hashes. The parser should reduce irrelevant formatting noise before hashing without attempting fuzzy matching or semantic interpretation.
+
+Tradeoffs:
+The parser may still include navigation or footer text, and aggressive cleanup could remove useful context if taken too far. The current cleanup is intentionally conservative.

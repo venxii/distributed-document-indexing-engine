@@ -88,6 +88,8 @@ The crawler does not parse HTML, compute hashes, or decide whether content chang
 
 Converts heterogeneous HTML into a consistent internal document shape.
 
+The parser extracts canonical URL, title, headings, and normalized text. It does not infer individual jobs, compute content hashes, or write to the database.
+
 ### Indexer
 
 Computes hashes, detects changes, performs idempotent updates, and later records versions if needed.
