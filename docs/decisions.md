@@ -518,3 +518,42 @@ The project already chose PostgreSQL as the durable store. Phase 5A simply verif
 
 Tradeoffs:
 It adds local environment setup, but that setup directly supports correctness validation rather than architectural breadth.
+
+## Why Benchmark Before Adding Search Infrastructure?
+
+Problem:
+The REST API uses simple PostgreSQL queries, including `ILIKE` for text search, but we did not know whether search, pagination, API overhead, or database filtering was the real bottleneck.
+
+Alternatives:
+- Add Redis
+- Add Elasticsearch/OpenSearch
+- Add PostgreSQL full-text search immediately
+- Measure the current DB and API behavior first
+
+Chosen:
+Measure current behavior first.
+
+Reason:
+Benchmarking showed that ordinary listing/filtering remained fast at 10,000 documents, API overhead was modest, and text search was the weak path. This gives us evidence for the next decision instead of adding infrastructure by guesswork.
+
+Tradeoffs:
+Benchmarking takes time and synthetic data is imperfect, but it prevents premature architecture changes.
+
+## Why Not Add Redis After Phase 5C?
+
+Problem:
+Redis could cache repeated API reads, but Phase 5C needed to identify whether repeated reads were actually the problem.
+
+Alternatives:
+- Add Redis cache
+- Improve database queries/search first
+- Keep current architecture
+
+Chosen:
+Do not add Redis after Phase 5C.
+
+Reason:
+The benchmark points to database-side text matching as the expensive path, not repeated identical reads. Redis would add operational complexity without addressing the measured bottleneck directly.
+
+Tradeoffs:
+Some repeated queries could still benefit from caching later, but that should be based on observed traffic patterns.
