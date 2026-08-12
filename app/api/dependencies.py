@@ -1,6 +1,10 @@
-"""Shared FastAPI dependencies.
+from collections.abc import Iterator
 
-Concrete database session wiring will be added when the persistence layer is
-connected in the implementation phases.
-"""
+from sqlalchemy.orm import Session
 
+from app.db.session import create_session
+
+
+def get_db_session() -> Iterator[Session]:
+    with create_session() as session:
+        yield session

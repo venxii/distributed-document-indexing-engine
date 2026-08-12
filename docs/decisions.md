@@ -135,6 +135,47 @@ The initial system can be understood through sources, crawl_runs, and documents.
 Tradeoffs:
 Early debugging relies more on logs and crawl metadata. If indexing behavior becomes harder to explain, we will add structured index events later.
 
+## Why Search as a Documents Query Parameter?
+
+Problem:
+The REST API needs to let clients search indexed documents, but the current search behavior is simple filtering over current document rows.
+
+Alternatives:
+- `GET /documents?q=backend`
+- A separate `GET /search?q=backend`
+- Elasticsearch/OpenSearch
+- Python-side filtering
+
+Chosen:
+Use `GET /documents?q=backend`.
+
+Reason:
+Search is currently one filter dimension on documents, alongside source filtering, sorting, and pagination. A separate search endpoint should wait until search has distinct semantics such as ranking, relevance scoring, tokenization, or a richer query language.
+
+Tradeoffs:
+The API is less flashy than a dedicated search subsystem, but it is simpler and more honest about what the system currently does.
+
+## Why PostgreSQL-Side `ILIKE` Search First?
+
+Problem:
+Users need basic text search over indexed document titles and normalized text.
+
+Alternatives:
+- PostgreSQL `ILIKE`
+- PostgreSQL full-text search
+- Trigram indexes
+- Elasticsearch/OpenSearch
+- Python-side filtering
+
+Chosen:
+PostgreSQL-side `ILIKE`.
+
+Reason:
+It keeps filtering in the database, avoids transferring all documents into Python, and is sufficient until we measure that query latency or relevance quality is inadequate.
+
+Tradeoffs:
+`ILIKE` does not provide ranking, stemming, tokenization, or strong large-corpus performance. PostgreSQL full-text search or trigram indexes are the likely next step if Phase 5C measurements justify them.
+
 ## Why Treat Crawling as Snapshot Fetching?
 
 Problem:

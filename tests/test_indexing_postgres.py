@@ -49,7 +49,10 @@ def postgres_engine() -> Iterator[Engine]:
 def migrated_schema(postgres_engine: Engine) -> Iterator[None]:
     reset_public_schema(postgres_engine)
     alembic_config = Config("alembic.ini")
-    alembic_config.set_main_option("sqlalchemy.url", str(postgres_engine.url))
+    alembic_config.set_main_option(
+        "sqlalchemy.url",
+        postgres_engine.url.render_as_string(hide_password=False),
+    )
     command.upgrade(alembic_config, "head")
     yield
     reset_public_schema(postgres_engine)
