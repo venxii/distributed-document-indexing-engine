@@ -42,7 +42,7 @@ Out of scope:
 ## Validation Order
 
 ```text
-Docker PostgreSQL starts
+PostgreSQL starts
         ↓
 Schema/migrations apply
         ↓
@@ -273,7 +273,7 @@ This is not permission to add unrelated infrastructure. Each file must directly 
 
 ## Local Validation Commands
 
-Expected local workflow:
+Docker Compose workflow:
 
 ```bash
 docker compose up -d postgres
@@ -290,6 +290,8 @@ POSTGRES_TEST_DATABASE_URL=postgresql+psycopg://indexflow:indexflow@localhost:54
 ```
 
 The regular test suite should still run without PostgreSQL. PostgreSQL integration tests should skip unless `POSTGRES_TEST_DATABASE_URL` is set.
+
+If Docker is unavailable but PostgreSQL is installed locally, an isolated local cluster is also acceptable because Phase 5A is validating PostgreSQL behavior, not Docker itself. In this run, PostgreSQL 14.17 from Homebrew was used on port `55432`.
 
 ## Stop Condition
 
@@ -315,17 +317,28 @@ Added:
 
 Current local validation result in this Codex environment:
 
-- `pytest --cov=app --cov-report=term-missing`: 28 passed, 5 PostgreSQL tests skipped.
+- `pytest tests/test_indexing_postgres.py -vv`: 5 passed against PostgreSQL 14.17.
+- `pytest --cov=app --cov-report=term-missing` with `POSTGRES_TEST_DATABASE_URL` set: 33 passed.
 - `ruff`: all checks passed.
 - `mypy`: no issues found in 33 source files.
-- Docker is not installed in this environment, so PostgreSQL runtime validation has not yet been executed here.
+- Docker is not installed in this environment, so validation used a local Homebrew PostgreSQL runtime instead of Docker Compose.
 
-The skipped PostgreSQL tests are intentional unless `POSTGRES_TEST_DATABASE_URL` is set.
+The skipped PostgreSQL tests are intentional unless `POSTGRES_TEST_DATABASE_URL` is set. When set, the PostgreSQL tests run as part of the full suite.
 
-Phase 5A is infrastructure-ready but not complete until those PostgreSQL tests run against a real PostgreSQL instance.
+Phase 5A PostgreSQL runtime validation is complete for the tested invariants.
+
+## SQLite vs PostgreSQL Findings
+
+- Schema/index verification is meaningful only against PostgreSQL; the PostgreSQL test inspected actual database metadata.
+- Idempotent reprocessing behaved the same under SQLite and PostgreSQL.
+- Changed-content version creation behaved the same under SQLite and PostgreSQL.
+- Rollback after a document insert and before version persistence left no partial state under PostgreSQL.
+- Concurrent first ingestion converged to one document and one version under PostgreSQL.
+- No Phase 4 indexer changes were required.
+- Docker Compose itself remains untested here because Docker is not installed, but the database behavior Phase 5A was designed to validate has been exercised against real PostgreSQL.
 
 ## Weakest Assumption
 
-The weakest part of the current design is that PostgreSQL conflict handling may differ from SQLite in concurrent first-ingestion races.
+The weakest remaining part is that Docker Compose startup has not been tested in this environment because Docker is unavailable.
 
-This should be fixed only if observed during PostgreSQL validation. The first attempted fix should be PostgreSQL transaction/upsert/locking behavior, not Redis, queues, or distributed locks.
+This should not block Phase 5B, because the actual PostgreSQL runtime behavior has been validated with a local PostgreSQL server. Docker Compose should still be tested later before deployment or handoff.
